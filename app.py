@@ -3,14 +3,14 @@ from flask import Flask, jsonify, render_template, redirect
 import pymongo
 import CarsScraperSingle
 import TrueCarScraper
+import json
 
 app = Flask(__name__)
 conn = "mongodb://localhost:27017"
 client = pymongo.MongoClient(conn)
 db = client.usedCarsDB
-
-# mongo = pymongo(app, uri="mongodb://localhost:27017/usedCarsDB")
-
+cars_collection = db.cars
+trueCar_collection = db.trueCar
 
 @app.route("/")
 def index():
@@ -30,34 +30,46 @@ def scrape():
    searchCars = CarsScraperSingle.scrape()
    searchTrueCar = TrueCarScraper.scrape()
    
-   db.cars.insert_many(searchCars)
-   db.trueCar.insert_many(searchTrueCar)
-
-   #mongo.db.usedCarsDB({}, searchCars, upsert=True)
+   cars_collection.insert_many(searchCars)
+   trueCar_collection.insert_many(searchTrueCar)
 
    return redirect("/")
 
 @app.route("/api/v1/allCar")
 def allCar():
 
-   allCar = db.cars.find()+db.trueCar.find()
-   #allCar.append(db.trueCar.find())
+   allCars = list(cars_collection.find())
 
-   return jsonify(list(allCar))
+   for car in trueCar_collection.find():
+      allCars.append(car)
+
+   # Remove id from each record before converting to JSON
+   for car in allCars:
+      car.pop("_id")
+
+   return jsonify(allCars)
 
 @app.route("/api/v1/truecar")
 def trueCar():
 
-   allCar = db.trueCar.find()
+   allCars = list(trueCar_collection.find())
 
-   return (allCar)
+   # Remove id from each record before converting to JSON
+   for car in allCars:
+      car.pop("_id")
+
+   return jsonify(allCars)
 
 @app.route("/api/v1/cars")
 def cars():
 
-   allCar = db.cars.find()
+   allCars = list(cars_collection.find())
 
-   return jsonify(list(allCar['cars']))
+   # Remove id from each record before converting to JSON
+   for car in allCars:
+      car.pop("_id")
+
+   return jsonify(allCars)
 
 if __name__ == "__main__":
    app.run(debug=True)
